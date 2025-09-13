@@ -1,5 +1,6 @@
 pipeline {
   agent any
+  tools { jdk 'jdk17' }  // name must match Jenkins tool
   options { timestamps() }
 
   environment {
