@@ -166,13 +166,18 @@ test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
-
 jacocoTestReport {
     dependsOn test
     reports {
-            xml.enabled true
-            html.enabled true
-            csv.enabled false
-            xml.destination file("${buildDir}/reports/jacoco.xml")
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+
+        // optional: keep your custom XML path
+        //xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco.xml"))
+        // html, csv output dirs can be customized similarly if you want
+        // html.outputLocation.set(layout.buildDirectory.dir("reports/jacocoHtml"))
     }
+}
+
 }
