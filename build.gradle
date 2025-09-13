@@ -103,7 +103,8 @@ jib {
 
 jacoco {
     toolVersion = "0.8.5"
-    reportsDir = file("$buildDir/jacoco")
+    // Use the new property (DirectoryProperty)
+    reportsDirectory = layout.buildDirectory.dir("jacoco")
 }
 
 tasks.register('GenerateSampleVulnerability'){
