@@ -3,36 +3,32 @@ plugins {
     id 'eclipse'
     id 'idea'
 
-    // Spring Boot & dependency management (compatible with Gradle 8 and Java 8 target)
+    // Spring Boot + dependency management (Gradle 8 compatible)
     id 'org.springframework.boot' version '2.7.18'
     id 'io.spring.dependency-management' version '1.1.6'
 
     // Formatting
     id 'com.diffplug.spotless' version '6.25.0'
 
-    // Container image build
+    // Image build
     id 'com.google.cloud.tools.jib' version '3.3.1'
 
-    // Code quality / coverage
+    // Quality / coverage
     id 'org.sonarqube' version '4.4.1.3373'
     id 'jacoco'
 }
 
-// ---- Java compatibility ----
+// ---- Java toolchain & bytecode target ----
 java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17) // run builds/tests on JDK 17
+    }
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
 }
-// Ensure 1.8 bytecode even if building on JDK 17+
+// still emit Java 8 bytecode even on JDK 17
 tasks.withType(JavaCompile).configureEach {
     options.release = 8
-}
-
-// ---- Spring Boot packaging (fix deprecated baseName, etc.) ----
-tasks.named('bootJar') {
-    archiveBaseName.set('VulnerableApp')
-    archiveVersion.set('1.0.0')
-    // archiveClassifier.set('') // uncomment if you need a classifier
 }
 
 // ---- Repositories ----
@@ -40,6 +36,20 @@ repositories {
     mavenCentral()
     gradlePluginPortal()
     mavenLocal()
+}
+
+// ---- Exclude Spring Boot's default logging (use log4j2) ----
+configurations {
+    all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+    }
+}
+
+// ---- Spring Boot jar metadata (fix deprecated baseName etc.) ----
+tasks.named('bootJar') {
+    archiveBaseName.set('VulnerableApp')
+    archiveVersion.set('1.0.0')
+    // archiveClassifier.set('') // if you need a classifier
 }
 
 // ---- SonarQube ----
@@ -53,7 +63,7 @@ sonarqube {
     }
 }
 
-// ---- Spotless (formatting) ----
+// ---- Spotless (Java + JS via prettier) ----
 spotless {
     java {
         clearSteps()
@@ -65,47 +75,31 @@ spotless {
     }
 }
 
-// ---- Jib (image build) ----
-// NOTE: For local Docker daemon, run: ./gradlew jibDockerBuild -Dimage=vulnapp:local
+// ---- Jib (build container image) ----
+// For local Docker daemon: ./gradlew jibDockerBuild -Dimage=vulnapp:local
 jib {
     to {
         image = 'sasanlabs/owasp-vulnerableapp:unreleased'
     }
-
-    // Enable multi-platform *except* when using jibDockerBuild (local daemon)
+    // Enable multi-arch except when using local daemon
     if (!project.gradle.startParameter.taskNames.contains("jibDockerBuild")) {
         logger.info("JIB: Enabling Multi-Platform Images")
         from {
             image = 'openjdk:8-jre-alpine'
             platforms {
-                platform {
-                    architecture = 'amd64'
-                    os = 'linux'
-                }
-                platform {
-                    architecture = 'arm64'
-                    os = 'linux'
-                }
-                platform {
-                    architecture = '386'
-                    os = 'linux'
-                }
-                platform {
-                    architecture = 's390x'
-                    os = 'linux'
-                }
-                platform {
-                    architecture = 'ppc64le'
-                    os = 'linux'
-                }
+                platform { architecture = 'amd64';  os = 'linux' }
+                platform { architecture = 'arm64';  os = 'linux' }
+                platform { architecture = '386';    os = 'linux' }
+                platform { architecture = 's390x';  os = 'linux' }
+                platform { architecture = 'ppc64le';os = 'linux' }
             }
         }
     }
 }
 
-// ---- JaCoCo (Gradle 8 API) ----
+// ---- JaCoCo (Gradle 8 API + JDK21-compatible agent) ----
 jacoco {
-    toolVersion = "0.8.5"
+    toolVersion = "0.8.11"
     reportsDirectory = layout.buildDirectory.dir("jacoco")
 }
 
@@ -145,7 +139,7 @@ tasks.register('GenerateSampleVulnerability') {
 }
 
 // ---- Dependencies ----
-// For Spring Boot starters, let the BOM manage versions (no explicit versions below).
+// Let Spring Boot BOM manage starter versions
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -166,7 +160,7 @@ dependencies {
     implementation 'commons-fileupload:commons-fileupload:1.5'
 }
 
-// Optional: reproducible archives (correct properties)
+// ---- Reproducible archives (deterministic jars) ----
 tasks.withType(AbstractArchiveTask).configureEach {
     preserveFileTimestamps = false
     reproducibleFileOrder = true
