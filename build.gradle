@@ -22,8 +22,9 @@ apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 
 bootJar {
-    baseName = 'VulnerableApp'
-    version =  '1.0.0'
+    archiveBaseName.set('VulnerableApp')
+    archiveVersion.set('1.0.0')
+    // archiveClassifier.set('')  // only if you previously used classifier = null
 }
 
 configurations {
