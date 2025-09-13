@@ -166,10 +166,9 @@ dependencies {
     implementation 'commons-fileupload:commons-fileupload:1.5'
 }
 
-// Optional: if you need reproducible archives
+// Optional: reproducible archives (correct properties)
 tasks.withType(AbstractArchiveTask).configureEach {
-    // Reproducible builds (omit file timestamps & order)
-    isPreserveFileTimestamps = false
-    isReproducibleFileOrder = true
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }
 
