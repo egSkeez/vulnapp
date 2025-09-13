@@ -1,56 +1,48 @@
 pipeline {
   agent any
-  tools { jdk 'jdk17' }  // name must match Jenkins tool
-  options { timestamps() }
+
+  tools { jdk 'jdk17' } // <-- name exactly as in Manage Jenkins > Tools
 
   environment {
-    IMAGE_NAME = "vulnapp"
-    IMAGE_TAG  = "jenkins-${env.BUILD_NUMBER}"
+    JAVA_HOME = "${tool 'jdk17'}"
+    PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
   }
 
+  options { timestamps() }
+
   stages {
-    stage('Checkout') {
-      steps { checkout scm }
-    }
-
-    stage('Build JAR (Gradle)') {
+    stage('Verify Java') {
       steps {
         sh '''
-          set -e
-          ./gradlew clean build
+          echo "Using JAVA_HOME=$JAVA_HOME"
+          java -version
         '''
       }
     }
 
-    stage('Build Docker image with Jib') {
+    stage('Clean Gradle caches (one-time if needed)') {
       steps {
         sh '''
-          set -e
-          ./gradlew jibDockerBuild -Dimage=${IMAGE_NAME}:${IMAGE_TAG}
-          echo "Built image: ${IMAGE_NAME}:${IMAGE_TAG}"
+          # remove caches compiled under the wrong JDK (class file version 65)
+          rm -rf ~/.gradle/caches || true
+          rm -rf ~/.gradle/daemon || true
+          rm -rf .gradle || true
         '''
       }
     }
 
-    // Optional: smoke-run the container briefly (requires /var/run/docker.sock mounted)
-    stage('Smoke test (optional)') {
-      when { expression { return fileExists('docker-compose.yml') } }
+    stage('Build') {
       steps {
         sh '''
-          set -e
-          # just show images/compose, don’t keep it running for now
-          docker images | head -n 10 || true
-          docker compose version || docker-compose version || true
+          ./gradlew --no-daemon --version
+          ./gradlew --no-daemon -Dorg.gradle.java.home="$JAVA_HOME" clean build
         '''
       }
     }
   }
 
   post {
-    success {
-      archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true
-      echo "✅ Image ${IMAGE_NAME}:${IMAGE_TAG} built"
-    }
+    always { echo 'Done' }
   }
 }
 
