@@ -30,6 +30,11 @@ pipeline {
         '''
       }
     }
+    stage('Format (Spotless)') {
+      steps {
+        sh './gradlew --no-daemon spotlessApply'
+      }
+    }
 
     stage('Build') {
       steps {
